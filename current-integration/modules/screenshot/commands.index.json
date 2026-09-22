@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "1.0",
+  "commands": [
+    {
+      "id": "screenshot.status",
+      "title": "查看截图状态",
+      "subtitle": "查看当前截图程序、路径，以及进程是否在运行",
+      "kind": "action",
+      "category": "Capture",
+      "constraints": ["runsExternalProcesses"],
+      "execution": { "type": "module.execute" }
+    },
+    {
+      "id": "screenshot.capture",
+      "title": "立即截图",
+      "subtitle": "Linux 打开 Flameshot 选区；Windows 和 macOS 通过 Snow Shot 已配置的截图快捷键开始框选",
+      "kind": "action",
+      "category": "Capture",
+      "constraints": ["runsExternalProcesses"],
+      "execution": { "type": "module.execute" }
+    },
+    {
+      "id": "screenshot.open",
+      "title": "打开截图工具",
+      "subtitle": "如果截图程序还没在运行，就由 MyPowerTools 拉起它",
+      "kind": "action",
+      "category": "Capture",
+      "constraints": ["runsExternalProcesses"],
+      "execution": { "type": "module.execute" }
+    }
+  ]
+}

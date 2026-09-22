@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "toolId": "screenshot",
+  "sourceClassification": "external-process-adapter",
+  "sourceNote": "Does not vendor Snow Shot or Flameshot. The adapter discovers and launches those GPL-3.0 programs as separate processes.",
+  "originalSnapshotPath": null,
+  "selectedEntries": [],
+  "currentIntegrationSnapshot": "current-integration",
+  "currentIntegrationGlobs": [
+    "modules/screenshot/**",
+    "src/Screenshot.MyPowerTools/**",
+    "src/Screenshot.Surface/**"
+  ]
+}

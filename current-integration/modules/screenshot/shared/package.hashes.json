@@ -1,0 +1,57 @@
+{
+  "Algorithm": "sha256",
+  "Files": [
+    {
+      "Path": "commands.index.json",
+      "Sha256": "5235bb3d93803374bad967b770d71d8b1d98850744dabf57224e6ac8291e5abd"
+    },
+    {
+      "Path": "module.json",
+      "Sha256": "b91ff807f3fe3f0be752dada1eb931260a404a0aa88aa18100f80896e3630059"
+    },
+    {
+      "Path": "Screenshot.MyPowerTools.deps.json",
+      "Sha256": "15b75a0c71891ba54eb887787321414f7b4c575b7b025282b65f7e1b62766805"
+    },
+    {
+      "Path": "Screenshot.MyPowerTools.dll",
+      "Sha256": "87e937401b6ff7fc98385e8308d1f9df0de63f51353a536944045c53ca3a2fc5"
+    },
+    {
+      "Path": "Screenshot.MyPowerTools.pdb",
+      "Sha256": "5d189b1ac4c2d40dd4a0b2c7ab53f60025db4587bea057e20108b976496ce644"
+    },
+    {
+      "Path": "ui/dashboard-card.json",
+      "Sha256": "b4e5c0da6dd34aa57044719ff00ef6ff6ceda276a2326f0c7f7238f061f418a4"
+    },
+    {
+      "Path": "ui/detail-page.json",
+      "Sha256": "f0cafb61d655bfec13d5c1a80888507068f67b3bb5bdbce94ccf56e2d97ff47b"
+    },
+    {
+      "Path": "ui/logs.json",
+      "Sha256": "b912066fe7d55246ce6454cd6a4266f796f717f22bf84a966ad5ff304f97d722"
+    },
+    {
+      "Path": "ui/settings.json",
+      "Sha256": "4ff5e4c9cfca3e14cb32ab99670cecb652f46ca6d68ba7a9e3d0a794e7a8b231"
+    },
+    {
+      "Path": "ui/surface/Screenshot.Surface.deps.json",
+      "Sha256": "52e89ed44b292451edb294d8d5573e9abcf3118c4e4b3e356ff497eca11ac7c5"
+    },
+    {
+      "Path": "ui/surface/Screenshot.Surface.dll",
+      "Sha256": "d1560bb9a81d813e760ed836c9bc98502af7f727b5b3418f70f6cd00dee89652"
+    },
+    {
+      "Path": "ui/surface/Screenshot.Surface.pdb",
+      "Sha256": "a8479ca339226be21fa7b54ac8a3c0fd9a3dcb70731e73d2d45836eca726a8a2"
+    },
+    {
+      "Path": "ui/tool.json",
+      "Sha256": "2b63e00ccae5a4d0aff3419a963d03fe1e84c00ff682df2d9783a9b71127c731"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "Format": "mpt-signature-v1",
+  "PackageId": "screenshot",
+  "Version": "0.1.0",
+  "HashManifest": "shared/package.hashes.json",
+  "HashManifestSha256": "4e06a0d59839d93ac423e706a35aeacdf3cb3f4e140c424321880f52e28dd79e",
+  "SignatureState": "unsigned-local-trust",
+  "Algorithm": "sha256-manifest-local",
+  "KeyId": "local-development",
+  "Signer": "lixinrui",
+  "CreatedAt": "2026-09-22T04:05:05.2939477+00:00",
+  "FutureAlgorithms": [
+    "ed25519-detached",
+    "x509-rsa-sha256",
+    "sigstore-bundle"
+  ]
+}

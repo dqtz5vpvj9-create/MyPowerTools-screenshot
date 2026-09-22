@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Screenshot.Surface</AssemblyName>
+    <RootNamespace>Screenshot.Surface</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="MyPowerTools.ToolSdk" Version="0.2.0" />
+    <PackageReference Include="MyPowerTools.AvaloniaSdk" Version="0.2.0" />
+    <PackageReference Include="MyPowerTools.UI" Version="0.2.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\..\src\MyPowerTools.HostControl.Client\MyPowerTools.HostControl.Client.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+  </ItemGroup>
+  <Target Name="KeepSurfacePackageLocal" AfterTargets="Build">
+    <ItemGroup>
+      <CopiedSurfaceDependency Include="$(OutputPath)*.dll" />
+      <CopiedSurfaceDependency Include="$(OutputPath)*.pdb" />
+      <CopiedSurfaceDependency Include="$(OutputPath)*.deps.json" />
+      <CopiedSurfaceDependency Remove="$(OutputPath)Screenshot.Surface.dll" />
+      <CopiedSurfaceDependency Remove="$(OutputPath)Screenshot.Surface.pdb" />
+      <CopiedSurfaceDependency Remove="$(OutputPath)Screenshot.Surface.deps.json" />
+    </ItemGroup>
+    <Delete Files="@(CopiedSurfaceDependency)" />
+  </Target>
+</Project>

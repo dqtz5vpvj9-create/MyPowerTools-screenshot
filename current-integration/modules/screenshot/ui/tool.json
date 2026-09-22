@@ -1,0 +1,30 @@
+{
+  "schemaVersion": "1.0",
+  "toolId": "screenshot",
+  "ownerModuleId": "screenshot",
+  "title": "截图",
+  "description": "Windows 和 macOS 使用 Snow Shot，Linux 使用 Flameshot。框选、标注和贴图留在这些程序里。",
+  "icon": "tool.external",
+  "category": "Capture",
+  "type": "dotnet-surface",
+  "availability": "available",
+  "primaryRouteId": "main",
+  "routes": [
+    {
+      "routeId": "main",
+      "surfaceId": "screenshot.detail",
+      "title": "截图",
+      "surface": {
+        "kind": "dotnet",
+        "assembly": "surface/Screenshot.Surface.dll",
+        "type": "Screenshot.Surface.ScreenshotSurfaceFactory"
+      }
+    }
+  ],
+  "homeCard": {
+    "summary": "Windows 和 macOS 使用 Snow Shot，Linux 使用 Flameshot。截图快捷键仍由这些程序自己持有。",
+    "primaryActionLabel": "打开截图",
+    "statusBinding": "module.status",
+    "order": 55
+  }
+}

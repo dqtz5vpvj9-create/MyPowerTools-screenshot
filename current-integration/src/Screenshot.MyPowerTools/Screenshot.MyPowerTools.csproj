@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Screenshot.MyPowerTools</RootNamespace>
+    <ModulePackageRoot Condition="'$(ModulePackageRoot)' == ''">$(MSBuildProjectDirectory)\..\..\modules\screenshot</ModulePackageRoot>
+    <RepositoryModuleRoot>$(MyPowerToolsRepoRoot)\modules\screenshot</RepositoryModuleRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MyPowerTools.ToolSdk" Version="0.2.0" />
+    <PackageReference Include="MyPowerTools.Protocol" Version="0.2.0" />
+    <PackageReference Include="MyPowerTools.Platform.Abstractions" Version="0.2.0" />
+  </ItemGroup>
+
+  <Target Name="CopyModuleAssemblyToPackage" AfterTargets="Build">
+    <MakeDir Directories="$(ModulePackageRoot)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModulePackageRoot)" />
+    <Copy SourceFiles="$(TargetDir)$(TargetName).pdb" DestinationFolder="$(ModulePackageRoot)" Condition="Exists('$(TargetDir)$(TargetName).pdb')" />
+    <Copy SourceFiles="$(TargetDir)$(TargetName).deps.json" DestinationFolder="$(ModulePackageRoot)" Condition="Exists('$(TargetDir)$(TargetName).deps.json')" />
+  </Target>
+
+  <Target Name="StageRepositoryModule"
+          AfterTargets="CopyModuleAssemblyToPackage"
+          Condition="'$(MyPowerToolsRepoRoot)' != '' and '$(StageRepositoryModule)' != 'false'">
+    <ItemGroup>
+      <RepositoryModuleFiles Include="$(ModulePackageRoot)\**\*" />
+    </ItemGroup>
+    <MakeDir Directories="$(RepositoryModuleRoot)" />
+    <Copy SourceFiles="@(RepositoryModuleFiles)"
+          DestinationFiles="@(RepositoryModuleFiles->'$(RepositoryModuleRoot)\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

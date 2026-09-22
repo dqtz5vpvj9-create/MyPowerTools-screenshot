@@ -1,0 +1,9 @@
+{
+  "schemaVersion": "1.0",
+  "surfaceId": "screenshot.logs",
+  "moduleId": "screenshot",
+  "kind": "logs",
+  "layout": { "mode": "component" },
+  "uses": ["MptLogViewer", "MptErrorView", "MptEmptyState"],
+  "states": ["loading", "ready", "empty", "error", "disabled"]
+}

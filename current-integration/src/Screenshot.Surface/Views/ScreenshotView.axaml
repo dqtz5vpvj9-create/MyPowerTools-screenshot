@@ -1,0 +1,96 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:MyPowerTools.UI.Controls"
+             xmlns:vm="using:Screenshot.Surface.ViewModels"
+             x:Class="Screenshot.Surface.Views.ScreenshotView"
+             x:DataType="vm:ScreenshotViewModel">
+  <UserControl.Styles>
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource MptBrushCardBackground}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource MptBrushBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="{DynamicResource MptRadiusCard}" />
+      <Setter Property="Padding" Value="20" />
+    </Style>
+    <Style Selector="TextBlock.secondary">
+      <Setter Property="Foreground" Value="{DynamicResource MptBrushTextSecondary}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.section-title">
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
+
+  <Border Padding="40,24,40,40" HorizontalAlignment="Stretch" VerticalAlignment="Top">
+    <StackPanel Spacing="16" MaxWidth="1100">
+      <Border Background="{DynamicResource MptBrushInfoBackground}"
+              BorderBrush="{DynamicResource MptBrushInfo}"
+              BorderThickness="1"
+              CornerRadius="{DynamicResource MptRadiusCard}"
+              Padding="24,20">
+        <StackPanel Spacing="6">
+          <TextBlock Text="截图" FontSize="22" FontWeight="SemiBold" />
+          <TextBlock Classes="secondary"
+                     MaxWidth="760"
+                     Text="框选、标注、贴图和滚动截图由 Snow Shot 或 Flameshot 自己完成。这一页负责发现程序、随 MyPowerTools 拉起，并打开它。" />
+        </StackPanel>
+      </Border>
+
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="14">
+        <Border Classes="card" MinHeight="132">
+          <StackPanel Spacing="8">
+            <TextBlock Text="当前程序" Classes="secondary" />
+            <TextBlock Text="{Binding Backend}" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding Executable}" Classes="secondary" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="1" Classes="card" MinHeight="132">
+          <StackPanel Spacing="8">
+            <TextBlock Text="进程" Classes="secondary" />
+            <TextBlock Text="{Binding Running}" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding HotkeyNote}" Classes="secondary" />
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <controls:MptButton Classes="MptPrimaryButton" Content="立即截图" Command="{Binding CaptureCommand}" />
+        <controls:MptButton Content="打开截图工具" Command="{Binding OpenCommand}" />
+        <controls:MptButton Content="刷新" Command="{Binding RefreshCommand}" />
+      </StackPanel>
+
+      <Border Classes="card" IsVisible="{Binding ShowInstallHint}">
+        <StackPanel Spacing="6">
+          <TextBlock Text="还没有安装截图程序" Classes="section-title" />
+          <TextBlock Text="{Binding InstallHint}" Classes="secondary" />
+        </StackPanel>
+      </Border>
+
+      <Border Background="{DynamicResource MptBrushSurfaceRaised}"
+              BorderBrush="{DynamicResource MptBrushBorder}"
+              BorderThickness="1"
+              CornerRadius="{DynamicResource MptRadiusControl}"
+              Padding="16,12">
+        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" />
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <TextBlock Text="设置" Classes="section-title" />
+          <TextBlock Classes="secondary"
+                     Text="路径留空时自动查找。Windows 和 macOS 指向 snow_shot.exe 或旧版 snowshot.exe，Linux 指向 flameshot。4K 或多屏如果 Snow Shot 界面发虚，改用它的 fixedRuntime 构建后再填这里。" />
+          <StackPanel Spacing="6">
+            <TextBlock Text="截图程序路径" />
+            <controls:MptTextBox Text="{Binding ExecutablePath}" PlaceholderText="留空则自动查找" />
+          </StackPanel>
+          <controls:MptCheckBox Content="随 MyPowerTools 启动"
+                                IsChecked="{Binding LaunchWithMyPowerTools}" />
+          <TextBlock Classes="secondary"
+                     Text="关闭这项只停止这次由 MyPowerTools 拉起的进程，不会关掉你另外打开的截图程序。Snow Shot 便携版默认截图键是 F1，以它自己的设置为准。" />
+          <controls:MptButton Content="保存设置" Command="{Binding SaveCommand}" />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </Border>
+</UserControl>
