@@ -11,11 +11,10 @@
     <PackageReference Include="MyPowerTools.ToolSdk" Version="0.2.0" />
     <PackageReference Include="MyPowerTools.AvaloniaSdk" Version="0.2.0" />
     <PackageReference Include="MyPowerTools.UI" Version="0.2.0" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\..\..\src\MyPowerTools.HostControl.Client\MyPowerTools.HostControl.Client.csproj">
-      <Private>false</Private>
-    </ProjectReference>
+    <!-- Consume the SDK package like every other first-party Surface. A relative
+         ProjectReference into the superproject's src/ cannot resolve when this
+         tool repository is checked out on its own. -->
+    <PackageReference Include="MyPowerTools.HostControl.Client" Version="0.2.0" />
   </ItemGroup>
   <Target Name="KeepSurfacePackageLocal" AfterTargets="Build">
     <ItemGroup>

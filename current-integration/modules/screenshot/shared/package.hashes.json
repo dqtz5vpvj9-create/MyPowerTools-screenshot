@@ -15,11 +15,11 @@
     },
     {
       "Path": "Screenshot.MyPowerTools.dll",
-      "Sha256": "87e937401b6ff7fc98385e8308d1f9df0de63f51353a536944045c53ca3a2fc5"
+      "Sha256": "584a24dbb993ea51006ddc0e7fe97cb89d791ddfb76e6bd43082f1f3c87051e1"
     },
     {
       "Path": "Screenshot.MyPowerTools.pdb",
-      "Sha256": "5d189b1ac4c2d40dd4a0b2c7ab53f60025db4587bea057e20108b976496ce644"
+      "Sha256": "74d774decf8ebd100d378decd744ba490b383a757e17d53075a4689a51aef478"
     },
     {
       "Path": "ui/dashboard-card.json",
@@ -39,15 +39,15 @@
     },
     {
       "Path": "ui/surface/Screenshot.Surface.deps.json",
-      "Sha256": "52e89ed44b292451edb294d8d5573e9abcf3118c4e4b3e356ff497eca11ac7c5"
+      "Sha256": "cf547083341bc3891d85d640a51a45eea349ad956d33f00554eedce0aa4c32f4"
     },
     {
       "Path": "ui/surface/Screenshot.Surface.dll",
-      "Sha256": "d1560bb9a81d813e760ed836c9bc98502af7f727b5b3418f70f6cd00dee89652"
+      "Sha256": "214844169d8336d04c7d56c24df2662ab620f6a7d17cfefb01758f102a268739"
     },
     {
       "Path": "ui/surface/Screenshot.Surface.pdb",
-      "Sha256": "a8479ca339226be21fa7b54ac8a3c0fd9a3dcb70731e73d2d45836eca726a8a2"
+      "Sha256": "b5bd325cbda3ecf967e827df95f4d7c57c86891404b29f5be0b870189e29d0e8"
     },
     {
       "Path": "ui/tool.json",

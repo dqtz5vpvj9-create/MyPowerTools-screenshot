@@ -3,7 +3,7 @@
   "PackageId": "screenshot",
   "Version": "0.1.0",
   "HashManifest": "shared/package.hashes.json",
-  "HashManifestSha256": "4e06a0d59839d93ac423e706a35aeacdf3cb3f4e140c424321880f52e28dd79e",
+  "HashManifestSha256": "4eadf2531c1eff77616b6eb7e6f8173ce8775de58144ff3833fb6623b8a598b2",
   "SignatureState": "unsigned-local-trust",
   "Algorithm": "sha256-manifest-local",
   "KeyId": "local-development",
