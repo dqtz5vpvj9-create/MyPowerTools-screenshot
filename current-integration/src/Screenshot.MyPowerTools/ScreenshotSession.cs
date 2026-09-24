@@ -1,3 +1,5 @@
+using MyPowerTools.Platform.Abstractions;
+
 namespace Screenshot.MyPowerTools;
 
 public sealed record ScreenshotInspection(
@@ -28,6 +30,11 @@ public sealed class ScreenshotSession
     }
 
     public static ScreenshotSession CreateReal() => new(new SystemScreenshotEnvironment());
+
+    public void UseKeyboardShortcuts(IKeyboardShortcutService? service)
+    {
+        _environment.UseKeyboardShortcuts(service);
+    }
 
     public ScreenshotInspection Inspect(string? executableOverride)
     {

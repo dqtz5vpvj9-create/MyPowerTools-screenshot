@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using MyPowerTools.Abstractions;
+using MyPowerTools.Platform.Abstractions;
 using MyPowerTools.Protocol;
 
 namespace Screenshot.MyPowerTools;
@@ -42,6 +43,9 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
 
     public ValueTask<InitializeResult> InitializeAsync(ModuleContext context, CancellationToken cancellationToken)
     {
+        // "立即截图" on macOS sends Snow Shot's hotkey through the platform's CGEvent service.
+        context.TryGetCapability<IKeyboardShortcutService>("keyboard.shortcut", out var keyboardShortcuts);
+        _session.UseKeyboardShortcuts(keyboardShortcuts);
         Directory.CreateDirectory(context.DataDirectory);
         Directory.CreateDirectory(context.CacheDirectory);
         Directory.CreateDirectory(context.LogDirectory);
