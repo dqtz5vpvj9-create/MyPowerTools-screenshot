@@ -17,6 +17,7 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
     private readonly ScreenshotUiCommand _openCommand;
     private readonly ScreenshotUiCommand _refreshCommand;
     private readonly ScreenshotUiCommand _saveCommand;
+    private readonly ScreenshotUiCommand _installCommand;
     private string _backend = "正在查找截图程序…";
     private string _executable = "";
     private string _running = "检查中";
@@ -28,6 +29,9 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
     private bool _isBusy;
     private bool _installed;
     private bool _showInstallHint;
+    private bool _canInstall;
+    private bool _isInstalling;
+    private string _installStatus = "";
 
     public ScreenshotViewModel(MptAvaloniaSurfaceContext context)
         : base("截图", "Windows 和 macOS 使用 Snow Shot，Linux 使用 Flameshot", ToolSurfaceState.Loading)
@@ -37,6 +41,8 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
         _openCommand = new ScreenshotUiCommand(OpenAsync, () => CanCapture);
         _refreshCommand = new ScreenshotUiCommand(InitializeAsync, () => !IsBusy);
         _saveCommand = new ScreenshotUiCommand(SaveSettingsAsync, () => CanSave);
+        _installCommand = new ScreenshotUiCommand(InstallAsync, () => !IsBusy && _canInstall && !_isInstalling);
+        InstallCommand = _installCommand;
         CaptureCommand = _captureCommand;
         OpenCommand = _openCommand;
         RefreshCommand = _refreshCommand;
@@ -54,6 +60,10 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
     public ICommand OpenCommand { get; }
     public ICommand RefreshCommand { get; }
     public ICommand SaveCommand { get; }
+    public ICommand InstallCommand { get; }
+    public bool CanInstall { get => _canInstall; private set => SetProperty(ref _canInstall, value); }
+    public bool IsInstalling { get => _isInstalling; private set => SetProperty(ref _isInstalling, value); }
+    public string InstallStatus { get => _installStatus; private set => SetProperty(ref _installStatus, value); }
     public bool CanCapture => !IsBusy && _installed;
     public bool CanSave => !IsBusy;
 
@@ -103,6 +113,9 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
             var root = document.RootElement;
             var installed = root.GetProperty("installed").GetBoolean();
             var running = root.GetProperty("running").GetBoolean();
+            var installState = root.TryGetProperty("installState", out var stateElement) ? stateElement.GetString() ?? "idle" : "idle";
+            var installMessage = root.TryGetProperty("installMessage", out var messageElement) ? messageElement.GetString() ?? "" : "";
+            var canInstall = root.TryGetProperty("canInstall", out var canElement) && canElement.GetBoolean();
             var settings = await ReadSettingsAsync(_lifetime.Token).ConfigureAwait(false);
             await RunOnUiAsync(() =>
             {
@@ -113,6 +126,9 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
                 HotkeyNote = root.GetProperty("hotkeyNote").GetString() ?? "";
                 InstallHint = root.GetProperty("installHint").GetString() ?? "";
                 ShowInstallHint = !installed;
+                CanInstall = canInstall;
+                IsInstalling = installState == "installing";
+                InstallStatus = installState == "idle" ? "" : installMessage;
                 Message = root.GetProperty("summary").GetString() ?? "";
                 if (string.IsNullOrWhiteSpace(Executable))
                 {
@@ -134,6 +150,7 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
             {
                 _installed = false;
                 ShowInstallHint = false;
+                IsInstalling = false;
                 Message = exception.Message;
                 SetProductState(ToolSurfaceState.Failed, exception.Message);
                 NotifyCommands();
@@ -142,6 +159,57 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
         finally
         {
             await SetBusyAsync(false).ConfigureAwait(false);
+        }
+    }
+
+    private async Task InstallAsync()
+    {
+        if (IsBusy || _isInstalling)
+        {
+            return;
+        }
+
+        await SetBusyAsync(true).ConfigureAwait(false);
+        try
+        {
+            var response = await ExecuteAsync("screenshot.install", TimeSpan.FromSeconds(10), _lifetime.Token).ConfigureAwait(false);
+            var text = response.Success
+                ? ReadActionMessage(response.Output)
+                : response.Error?.Message ?? response.Output;
+            await RunOnUiAsync(() =>
+            {
+                InstallStatus = text;
+                IsInstalling = response.Success;
+                NotifyCommands();
+            }).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+        {
+            return;
+        }
+        catch (Exception exception)
+        {
+            await RunOnUiAsync(() => InstallStatus = exception.Message).ConfigureAwait(false);
+            return;
+        }
+        finally
+        {
+            await SetBusyAsync(false).ConfigureAwait(false);
+        }
+
+        // The download runs in the module; poll only while it is in progress.
+        while (_isInstalling && !_lifetime.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2), _lifetime.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            await InitializeAsync().ConfigureAwait(false);
         }
     }
 
@@ -288,6 +356,7 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
         _openCommand.NotifyCanExecuteChanged();
         _refreshCommand.NotifyCanExecuteChanged();
         _saveCommand.NotifyCanExecuteChanged();
+        _installCommand.NotifyCanExecuteChanged();
     }
 
     private async Task SetBusyAsync(bool value)

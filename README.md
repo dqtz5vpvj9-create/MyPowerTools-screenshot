@@ -9,7 +9,7 @@ Both programs are GPL-3.0. This module does not link or vendor them. It looks up
 
 On macOS, **立即截图** sends the same hotkey through the MyPowerTools `keyboard.shortcut` platform service (CoreGraphics `CGEvent`), so MyPowerTools needs Accessibility permission (System Settings › Privacy & Security › Accessibility). The hotkey is read from `~/Library/Application Support/SnowShot/snow_shot/config.json`; without a saved value Snow Shot's macOS default `Control+1` is used. Qt writes Command as `Ctrl` and Control as `Meta` on macOS; the module swaps them into MyPowerTools notation.
 
-Snow Shot is not installed by this module. On Windows the usual package is `winget install --id mg-chao.snow-shot -e`. A 4K or multi-monitor display that renders poorly should use Snow Shot's fixedRuntime build, then set that executable path in Screenshot settings.
+Snow Shot is never downloaded automatically. When it is missing, the Screenshot page shows a **下载并安装 Snow Shot** button (command `screenshot.install`). Clicking it downloads the official build from `https://snowshot.top/setup/` (`snow-shot_macos-arm64.dmg` on Apple silicon Macs, `snow-shot_windows-x64-portable.zip` on Windows), checks the SHA-256 the publisher lists next to it (`.sha256` / `SHA256SUMS`), installs it for the current user (`~/Applications/Snow Shot.app`, `%LOCALAPPDATA%\Programs\Snow Shot`) and starts it. Snow Shot publishes no Intel Mac build, so the button is hidden there. On Windows the usual package is `winget install --id mg-chao.snow-shot -e`. A 4K or multi-monitor display that renders poorly should use Snow Shot's fixedRuntime build, then set that executable path in Screenshot settings.
 
 Build from the repository root:
 

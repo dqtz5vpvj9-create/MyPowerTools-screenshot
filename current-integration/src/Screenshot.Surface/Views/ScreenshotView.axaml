@@ -64,6 +64,10 @@
         <StackPanel Spacing="6">
           <TextBlock Text="还没有安装截图程序" Classes="section-title" />
           <TextBlock Text="{Binding InstallHint}" Classes="secondary" />
+          <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding CanInstall}">
+            <controls:MptButton Classes="MptPrimaryButton" Content="下载并安装 Snow Shot" Command="{Binding InstallCommand}" />
+          </StackPanel>
+          <TextBlock Text="{Binding InstallStatus}" Classes="secondary" TextWrapping="Wrap" />
         </StackPanel>
       </Border>
 

@@ -7,8 +7,12 @@
       "subtitle": "查看当前截图程序、路径，以及进程是否在运行",
       "kind": "action",
       "category": "Capture",
-      "constraints": ["runsExternalProcesses"],
-      "execution": { "type": "module.execute" }
+      "constraints": [
+        "runsExternalProcesses"
+      ],
+      "execution": {
+        "type": "module.execute"
+      }
     },
     {
       "id": "screenshot.capture",
@@ -16,8 +20,12 @@
       "subtitle": "Linux 打开 Flameshot 选区；Windows 和 macOS 通过 Snow Shot 已配置的截图快捷键开始框选",
       "kind": "action",
       "category": "Capture",
-      "constraints": ["runsExternalProcesses"],
-      "execution": { "type": "module.execute" }
+      "constraints": [
+        "runsExternalProcesses"
+      ],
+      "execution": {
+        "type": "module.execute"
+      }
     },
     {
       "id": "screenshot.open",
@@ -25,8 +33,25 @@
       "subtitle": "如果截图程序还没在运行，就由 MyPowerTools 拉起它",
       "kind": "action",
       "category": "Capture",
-      "constraints": ["runsExternalProcesses"],
-      "execution": { "type": "module.execute" }
+      "constraints": [
+        "runsExternalProcesses"
+      ],
+      "execution": {
+        "type": "module.execute"
+      }
+    },
+    {
+      "id": "screenshot.install",
+      "title": "下载并安装 Snow Shot",
+      "subtitle": "从 Snow Shot 官网下载官方版本，校验 SHA-256 后为当前用户安装",
+      "kind": "action",
+      "category": "Capture",
+      "constraints": [
+        "runsExternalProcesses"
+      ],
+      "execution": {
+        "type": "module.execute"
+      }
     }
   ]
 }

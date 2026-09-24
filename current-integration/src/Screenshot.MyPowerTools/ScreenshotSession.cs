@@ -12,7 +12,10 @@ public sealed record ScreenshotInspection(
     bool SupportsCaptureCommand,
     string HotkeyNote,
     string InstallHint,
-    string Summary);
+    string Summary,
+    string InstallState = "idle",
+    string InstallMessage = "",
+    bool CanInstall = false);
 
 public sealed record ScreenshotActionResult(bool Success, string Message, ScreenshotInspection Inspection);
 
