@@ -194,7 +194,14 @@ public sealed class ScreenshotSession
 
         if (_ownedProcessId is int owned && OwnsMatchingLiveProcess(owned))
         {
-            return new ScreenshotActionResult(true, $"{backend.DisplayName} 已由 MyPowerTools 拉起。", CreateInspection(backend));
+            if (OwnsBackend(backend))
+            {
+                return new ScreenshotActionResult(true, $"{backend.DisplayName} 已由 MyPowerTools 拉起。", CreateInspection(backend));
+            }
+
+            // A settings change may select another installation. Release only the
+            // process this session started before launching the selected backend.
+            StopOwned();
         }
 
         if (_environment.IsProcessRunning(backend.ProcessName))
@@ -278,7 +285,7 @@ public sealed class ScreenshotSession
 
     private ScreenshotInspection CreateInspection(ScreenshotBackend backend)
     {
-        var owned = _ownedProcessId is int processId && OwnsMatchingLiveProcess(processId);
+        var owned = OwnsBackend(backend);
         var running = owned || (backend.Installed && _environment.IsProcessRunning(backend.ProcessName));
         var summary = !backend.Installed
             ? backend.InstallHint
@@ -296,5 +303,12 @@ public sealed class ScreenshotSession
             backend.HotkeyNote,
             backend.InstallHint,
             summary);
+    }
+
+    private bool OwnsBackend(ScreenshotBackend backend)
+    {
+        return backend.Installed && backend.ExecutablePath is not null &&
+            _ownedImagePath is not null && ImagePathsEqual(_ownedImagePath, backend.ExecutablePath) &&
+            _ownedProcessId is int processId && OwnsMatchingLiveProcess(processId);
     }
 }
