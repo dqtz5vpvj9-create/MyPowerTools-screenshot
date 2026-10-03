@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
 using MyPowerTools.Abstractions;
+using MyPowerTools.Platform.Abstractions;
 using MyPowerTools.Protocol;
 
 namespace Screenshot.MyPowerTools;
@@ -15,6 +16,7 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
     };
 
     private readonly ScreenshotSession _session;
+    private readonly ScreenshotSnowShotInstaller? _installer;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
     private readonly Channel<MptModuleEvent> _events = Channel.CreateUnbounded<MptModuleEvent>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
@@ -25,13 +27,17 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
     private long _eventSequence;
 
     public ScreenshotModule()
-        : this(ScreenshotSession.CreateReal(), null)
+        : this(ScreenshotSession.CreateReal(), null, ScreenshotSnowShotInstaller.CreateReal())
     {
     }
 
-    public ScreenshotModule(ScreenshotSession session, Func<TimeSpan, CancellationToken, Task>? delay)
+    public ScreenshotModule(
+        ScreenshotSession session,
+        Func<TimeSpan, CancellationToken, Task>? delay,
+        ScreenshotSnowShotInstaller? installer = null)
     {
         _session = session;
+        _installer = installer;
         _delay = delay ?? ((duration, cancellationToken) => Task.Delay(duration, cancellationToken));
     }
 
@@ -42,6 +48,9 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
 
     public ValueTask<InitializeResult> InitializeAsync(ModuleContext context, CancellationToken cancellationToken)
     {
+        // "立即截图" on macOS sends Snow Shot's hotkey through the platform's CGEvent service.
+        context.TryGetCapability<IKeyboardShortcutService>("keyboard.shortcut", out var keyboardShortcuts);
+        _session.UseKeyboardShortcuts(keyboardShortcuts);
         Directory.CreateDirectory(context.DataDirectory);
         Directory.CreateDirectory(context.CacheDirectory);
         Directory.CreateDirectory(context.LogDirectory);
@@ -56,8 +65,8 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
 
     public ValueTask<ModuleStatusSnapshot> GetStatusAsync(CancellationToken cancellationToken)
     {
-        var inspection = _session.Inspect(ExecutableOverride());
-        var checks = new[]
+        var inspection = Inspect();
+        var checks = new List<HealthCheckSnapshot>
         {
             new HealthCheckSnapshot(
                 "backend.installed",
@@ -70,6 +79,15 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
                 inspection.Running,
                 inspection.Running ? "The screenshot process is running." : "The screenshot process is not running.")
         };
+        if (inspection.InstallState is not "idle")
+        {
+            checks.Add(new HealthCheckSnapshot(
+                "backend.install",
+                "Snow Shot 安装",
+                inspection.InstallState is "installing" or "installed",
+                inspection.InstallMessage));
+        }
+
         return ValueTask.FromResult(new ModuleStatusSnapshot(
             Id,
             inspection.Installed ? "running" : "degraded",
@@ -85,7 +103,8 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
         [
             Command("screenshot.status", "查看截图状态", "查看当前截图程序、路径，以及进程是否在运行"),
             Command("screenshot.capture", "立即截图", "Linux 打开 Flameshot 选区；Windows 和 macOS 通过 Snow Shot 已配置的截图快捷键开始框选"),
-            Command("screenshot.open", "打开截图工具", "如果截图程序还没在运行，就由 MyPowerTools 拉起它")
+            Command("screenshot.open", "打开截图工具", "如果截图程序还没在运行，就由 MyPowerTools 拉起它"),
+            Command("screenshot.install", "下载并安装 Snow Shot", "从 Snow Shot 官网下载官方版本，校验 SHA-256 后为当前用户安装")
         ];
         return ValueTask.FromResult(commands);
     }
@@ -97,12 +116,13 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
             cancellationToken.ThrowIfCancellationRequested();
             var result = request.CommandId switch
             {
-                "screenshot.status" => Succeeded(request, Serialize(_session.Inspect(ExecutableOverride()))),
+                "screenshot.status" => Succeeded(request, Serialize(Inspect())),
+                "screenshot.install" => FromAction(request, Install()),
                 "screenshot.capture" => FromAction(request, _session.Capture(ExecutableOverride())),
                 "screenshot.open" => FromAction(request, _session.Open(ExecutableOverride())),
                 _ => Failed(request, MptErrorCodes.NotFound, $"Unknown command '{request.CommandId}'.")
             };
-            if (result.Success && request.CommandId is "screenshot.capture" or "screenshot.open")
+            if (result.Success && request.CommandId is "screenshot.capture" or "screenshot.open" or "screenshot.install")
             {
                 Publish(request.CommandId, result.Output);
             }
@@ -285,6 +305,71 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
             _startupGeneration++;
             _startupCancellation?.Cancel();
             _startupCancellation = null;
+        }
+    }
+
+    private ScreenshotInspection Inspect()
+    {
+        var inspection = _session.Inspect(ExecutableOverride());
+        if (_installer is null)
+        {
+            return inspection;
+        }
+
+        var status = _installer.Status;
+        return inspection with
+        {
+            InstallState = status.State,
+            InstallMessage = status.Message,
+            CanInstall = !inspection.Installed && _installer.IsSupported(out _)
+        };
+    }
+
+    // Only runs when the user explicitly asks (the 下载并安装 button or command); nothing
+    // downloads Snow Shot on its own.
+    private ScreenshotActionResult Install()
+    {
+        if (_installer is null)
+        {
+            return new ScreenshotActionResult(false, "当前环境不支持自动安装。", Inspect());
+        }
+
+        if (!_installer.IsSupported(out var unsupported))
+        {
+            return new ScreenshotActionResult(false, unsupported, Inspect());
+        }
+
+        var current = _session.Inspect(ExecutableOverride());
+        if (current.Installed)
+        {
+            return new ScreenshotActionResult(true, $"{current.DisplayName} 已安装：{current.ExecutablePath}", Inspect());
+        }
+
+        if (_installer.TryStartInstall(out var install))
+        {
+            _ = install.ContinueWith(
+                completed => OnInstallCompleted(completed.Result),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnRanToCompletion,
+                TaskScheduler.Default);
+        }
+
+        var status = _installer.Status;
+        return new ScreenshotActionResult(status.State is "installing" or "installed", status.Message, Inspect());
+    }
+
+    private void OnInstallCompleted(ScreenshotInstallStatus status)
+    {
+        Publish("screenshot.install", status.Message);
+        if (status.State != "installed")
+        {
+            return;
+        }
+
+        lock (_startupGate)
+        {
+            var started = _session.EnsureResident(ExecutableOverride());
+            Publish("screenshot.launch", started.Message);
         }
     }
 

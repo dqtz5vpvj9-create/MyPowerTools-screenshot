@@ -209,11 +209,15 @@ public static class ScreenshotBackendResolver
 
         foreach (var root in roots)
         {
-            var bundle = Path.Combine(root, "Snow Shot.app", "Contents", "MacOS");
-            var candidate = FirstExisting(environment, bundle, MacExecutableNames);
-            if (candidate is not null)
+            // The release DMG ships "Snow Shot.app"; a CMake install tree keeps "snow_shot.app".
+            foreach (var bundleName in new[] { "Snow Shot.app", "snow_shot.app" })
             {
-                return candidate;
+                var bundle = Path.Combine(root, bundleName, "Contents", "MacOS");
+                var candidate = FirstExisting(environment, bundle, MacExecutableNames);
+                if (candidate is not null)
+                {
+                    return candidate;
+                }
             }
         }
 
@@ -294,8 +298,13 @@ public static class ScreenshotBackendResolver
 
     private static string HotkeyNoteFor(ScreenshotPlatform platform)
     {
-        return platform == ScreenshotPlatform.Linux
-            ? "截图快捷键由 Flameshot 或桌面环境注册。MyPowerTools 的 Linux 全局热键尚未实现，不会再注册一组。"
-            : "截图快捷键由 Snow Shot 自己注册。MyPowerTools 不会再占用一组全局热键。";
+        return platform switch
+        {
+            ScreenshotPlatform.Linux =>
+                "截图快捷键由 Flameshot 或桌面环境注册。MyPowerTools 的 Linux 全局热键尚未实现，不会再注册一组。",
+            ScreenshotPlatform.MacOs =>
+                "截图快捷键由 Snow Shot 自己注册。MyPowerTools 不会再占用一组全局热键；「立即截图」需要在「系统设置 › 隐私与安全性 › 辅助功能」中授权 MyPowerTools。",
+            _ => "截图快捷键由 Snow Shot 自己注册。MyPowerTools 不会再占用一组全局热键。"
+        };
     }
 }

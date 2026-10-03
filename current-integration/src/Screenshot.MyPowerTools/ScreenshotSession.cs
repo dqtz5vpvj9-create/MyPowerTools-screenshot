@@ -1,3 +1,5 @@
+using MyPowerTools.Platform.Abstractions;
+
 namespace Screenshot.MyPowerTools;
 
 public sealed record ScreenshotInspection(
@@ -10,7 +12,10 @@ public sealed record ScreenshotInspection(
     bool SupportsCaptureCommand,
     string HotkeyNote,
     string InstallHint,
-    string Summary);
+    string Summary,
+    string InstallState = "idle",
+    string InstallMessage = "",
+    bool CanInstall = false);
 
 public sealed record ScreenshotActionResult(bool Success, string Message, ScreenshotInspection Inspection);
 
@@ -28,6 +33,11 @@ public sealed class ScreenshotSession
     }
 
     public static ScreenshotSession CreateReal() => new(new SystemScreenshotEnvironment());
+
+    public void UseKeyboardShortcuts(IKeyboardShortcutService? service)
+    {
+        _environment.UseKeyboardShortcuts(service);
+    }
 
     public ScreenshotInspection Inspect(string? executableOverride)
     {

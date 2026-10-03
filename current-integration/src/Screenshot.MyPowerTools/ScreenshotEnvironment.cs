@@ -1,3 +1,5 @@
+using MyPowerTools.Platform.Abstractions;
+
 namespace Screenshot.MyPowerTools;
 
 public interface IScreenshotEnvironment
@@ -15,6 +17,7 @@ public interface IScreenshotEnvironment
     string? ReadLaunchHelp(string executablePath);
     string? ReadConfiguredScreenshotHotkey(string executablePath);
     bool TrySendShortcut(string gesture, out string error);
+    void UseKeyboardShortcuts(IKeyboardShortcutService? service);
     void WaitAfterResidentStart();
     bool IsProcessRunning(string processName);
     bool IsProcessAlive(int processId);
@@ -53,6 +56,8 @@ public sealed class SystemScreenshotEnvironment : IScreenshotEnvironment
     public string? LocalAppData { get; } = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
     public string? UserProfile { get; } = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
     public string? PathEnvironment { get; } = Environment.GetEnvironmentVariable("PATH");
+    public string? RoamingAppData { get; } = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+    private IKeyboardShortcutService? _keyboardShortcuts;
 
     public bool FileExists(string path)
     {
@@ -109,27 +114,44 @@ public sealed class SystemScreenshotEnvironment : IScreenshotEnvironment
 
     public string? ReadConfiguredScreenshotHotkey(string executablePath)
     {
-        foreach (var path in ScreenshotSnowShotHotkey.CandidateConfigPaths(executablePath))
+        foreach (var path in ScreenshotSnowShotHotkey.CandidateConfigPaths(executablePath, Platform, UserProfile, RoamingAppData))
         {
             var gesture = ScreenshotSnowShotHotkey.ReadFromConfigJson(ReadAllText(path));
             if (!string.IsNullOrWhiteSpace(gesture))
             {
-                return gesture;
+                return ScreenshotSnowShotHotkey.ToGesture(gesture, Platform);
             }
         }
 
-        return null;
+        // Snow Shot on macOS registers its schema default until the user changes it.
+        return Platform == ScreenshotPlatform.MacOs
+            ? ScreenshotSnowShotHotkey.ToGesture(ScreenshotSnowShotHotkey.MacDefaultPortableShortcut, Platform)
+            : null;
+    }
+
+    public void UseKeyboardShortcuts(IKeyboardShortcutService? service)
+    {
+        _keyboardShortcuts = service;
     }
 
     public bool TrySendShortcut(string gesture, out string error)
     {
-        if (Platform != ScreenshotPlatform.Windows)
+        if (Platform == ScreenshotPlatform.Windows)
+        {
+            return ScreenshotWindowsShortcut.TrySend(gesture, out error);
+        }
+
+        // macOS goes through the platform pack's CGEvent injection (keyboard.shortcut),
+        // which also reports a missing Accessibility grant.
+        if (_keyboardShortcuts is null)
         {
             error = "当前平台无法从 MyPowerTools 注入截图快捷键。";
             return false;
         }
 
-        return ScreenshotWindowsShortcut.TrySend(gesture, out error);
+        var result = _keyboardShortcuts.SendAsync(gesture, CancellationToken.None).GetAwaiter().GetResult();
+        error = result.Success ? "" : result.Message;
+        return result.Success;
     }
 
     public void WaitAfterResidentStart()
