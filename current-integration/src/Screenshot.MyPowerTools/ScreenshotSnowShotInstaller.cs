@@ -204,11 +204,10 @@ public sealed class ScreenshotSnowShotInstaller
         // Extract next to the destination so the final move never crosses volumes.
         var programs = Path.Combine(_localAppData!, "Programs");
         Directory.CreateDirectory(programs);
-        var extracted = Path.Combine(programs, ".snow-shot-mpt-install");
-        TryDeleteDirectory(extracted);
-        ZipFile.ExtractToDirectory(archive, extracted);
+        var extracted = Path.Combine(programs, ".snow-shot-mpt-install-" + Guid.NewGuid().ToString("N"));
         try
         {
+            ZipFile.ExtractToDirectory(archive, extracted);
             return MoveWindowsPayload(extracted, programs);
         }
         finally
@@ -217,8 +216,9 @@ public sealed class ScreenshotSnowShotInstaller
         }
     }
 
-    private static string MoveWindowsPayload(string extracted, string programs)
+    internal static string MoveWindowsPayload(string extracted, string programs, Action<string, string>? moveDirectory = null)
     {
+        moveDirectory ??= Directory.Move;
         var executable = Directory.EnumerateFiles(extracted, ScreenshotBackendResolver.SnowShotExecutable, SearchOption.AllDirectories)
             .OrderBy(path => path.Length)
             .FirstOrDefault()
@@ -230,18 +230,111 @@ public sealed class ScreenshotSnowShotInstaller
         }
 
         var target = Path.Combine(programs, "Snow Shot");
-        TryDeleteDirectory(target);
-        Directory.Move(payloadRoot, target);
+        // Prepare the replacement before changing the current install. A repair may be missing
+        // the executable but still contain the user's only copy of their portable settings.
+        PreserveWindowsUserData(target, payloadRoot, Path.GetDirectoryName(executable)!);
+        var backup = Path.Combine(programs, ".snow-shot-mpt-backup-" + Guid.NewGuid().ToString("N"));
+        var hadTarget = Directory.Exists(target);
+        if (hadTarget)
+        {
+            moveDirectory(target, backup);
+        }
+
+        try
+        {
+            moveDirectory(payloadRoot, target);
+        }
+        catch (Exception installError)
+        {
+            if (hadTarget)
+            {
+                try
+                {
+                    moveDirectory(backup, target);
+                }
+                catch (Exception rollbackError)
+                {
+                    // Never clean up this backup: it is the surviving copy of the user's data.
+                    throw new IOException($"安装替换失败，原安装和设置已保留在 {backup}。", new AggregateException(installError, rollbackError));
+                }
+            }
+            throw;
+        }
+
+        TryDeleteDirectory(backup);
         return target;
+    }
+
+    private static void PreserveWindowsUserData(string target, string payloadRoot, string executableDirectory)
+    {
+        RejectUserDataLink(target);
+        RejectUserDataLink(Path.Combine(target, "bin"));
+        // Keep both supported layouts, including companion portable data and root-level config.
+        foreach (var relative in new[] { "portable", "config.json", Path.Combine("bin", "portable"), Path.Combine("bin", "config.json") })
+        {
+            CopyUserData(Path.Combine(target, relative), Path.Combine(payloadRoot, relative));
+        }
+
+        // If a release switches between root and bin layouts, copy settings beside the new
+        // executable only when that location has no existing user data of its own.
+        var oldBin = Path.Combine(target, "bin");
+        var oldExecutableDirectory = File.Exists(Path.Combine(target, ScreenshotBackendResolver.SnowShotExecutable))
+            ? target
+            : File.Exists(Path.Combine(oldBin, ScreenshotBackendResolver.SnowShotExecutable)) ||
+              File.Exists(Path.Combine(oldBin, "portable", "config.json")) || File.Exists(Path.Combine(oldBin, "config.json"))
+                ? oldBin
+                : target;
+        if (Path.GetRelativePath(target, oldExecutableDirectory) != Path.GetRelativePath(payloadRoot, executableDirectory))
+        {
+            var previousDestination = Path.Combine(target, Path.GetRelativePath(payloadRoot, executableDirectory));
+            foreach (var name in new[] { "portable", "config.json" })
+            {
+                if (!Path.Exists(Path.Combine(previousDestination, name)))
+                    CopyUserData(Path.Combine(oldExecutableDirectory, name), Path.Combine(executableDirectory, name));
+            }
+        }
+    }
+
+    private static void CopyUserData(string source, string destination)
+    {
+        if (!Path.Exists(source)) return;
+        // Do not follow a junction/symlink outside the install tree. Fail before replacing the
+        // old install so unusual layouts retain their original data for manual repair.
+        RejectUserDataLink(source);
+        var attributes = File.GetAttributes(source);
+
+        if ((attributes & FileAttributes.Directory) != 0)
+        {
+            Directory.CreateDirectory(destination);
+            foreach (var entry in Directory.EnumerateFileSystemEntries(source))
+                CopyUserData(entry, Path.Combine(destination, Path.GetFileName(entry)));
+        }
+        else
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(source, destination, overwrite: true);
+        }
+    }
+
+    private static void RejectUserDataLink(string path)
+    {
+        if (Path.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+            throw new IOException($"无法安全迁移链接形式的 Snow Shot 设置：{path}");
     }
 
     private static async Task DownloadAsync(HttpClient http, string url, string destination)
     {
-        using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead).ConfigureAwait(false);
+        // ResponseHeadersRead ends HttpClient.Timeout at the headers. Keep a deadline alive
+        // for stream acquisition and every body read as well, including a stalled response.
+        var timeout = http.Timeout == Timeout.InfiniteTimeSpan || http.Timeout > DownloadTimeout
+            ? DownloadTimeout
+            : http.Timeout;
+        using var deadline = new CancellationTokenSource(timeout);
+        using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
-        await using var source = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+        await using var source = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
         await using var target = File.Create(destination);
-        await source.CopyToAsync(target).ConfigureAwait(false);
+        await source.CopyToAsync(target, deadline.Token).ConfigureAwait(false);
     }
 
     /// <summary>
