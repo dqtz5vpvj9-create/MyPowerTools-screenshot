@@ -24,6 +24,7 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
     private JsonObject _settings = DefaultSettings();
     private CancellationTokenSource? _startupCancellation;
     private int _startupGeneration;
+    private int _installLaunchGeneration;
     private long _eventSequence;
 
     public ScreenshotModule()
@@ -45,6 +46,7 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
     public string PackageId => "screenshot";
     public Version Version => new(0, 1, 0);
     public Task StartupTask { get; private set; } = Task.CompletedTask;
+    internal Task InstallationCompletionTask { get; private set; } = Task.CompletedTask;
 
     public ValueTask<InitializeResult> InitializeAsync(ModuleContext context, CancellationToken cancellationToken)
     {
@@ -211,6 +213,7 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
             }
             else
             {
+                _installLaunchGeneration++;
                 _session.StopOwned();
                 Publish("screenshot.stop", "已关闭随 MyPowerTools 启动，并停止本次拉起的截图进程。");
             }
@@ -262,16 +265,24 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
 
     public ValueTask StopAsync(ModuleContext context, CancellationToken cancellationToken)
     {
-        CancelPendingStartup();
-        _session.StopOwned();
+        lock (_startupGate)
+        {
+            CancelPendingStartup();
+            _installLaunchGeneration++;
+            _session.StopOwned();
+        }
         return ValueTask.CompletedTask;
     }
 
     public ValueTask DisposeAsync(CancellationToken cancellationToken)
     {
-        CancelPendingStartup();
-        _session.StopOwned();
-        _events.Writer.TryComplete();
+        lock (_startupGate)
+        {
+            CancelPendingStartup();
+            _installLaunchGeneration++;
+            _session.StopOwned();
+            _events.Writer.TryComplete();
+        }
         return ValueTask.CompletedTask;
     }
 
@@ -345,20 +356,26 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
             return new ScreenshotActionResult(true, $"{current.DisplayName} 已安装：{current.ExecutablePath}", Inspect());
         }
 
-        if (_installer.TryStartInstall(out var install))
+        lock (_startupGate)
         {
-            _ = install.ContinueWith(
-                completed => OnInstallCompleted(completed.Result),
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnRanToCompletion,
-                TaskScheduler.Default);
+            if (_installer.TryStartInstall(out var install))
+            {
+                // The download may finish after Stop/Disable/Dispose. Only the explicit
+                // install request's still-current launch permission can start a resident.
+                var generation = _installLaunchGeneration;
+                InstallationCompletionTask = install.ContinueWith(
+                    completed => OnInstallCompleted(completed.Result, generation),
+                    CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnRanToCompletion,
+                    TaskScheduler.Default);
+            }
         }
 
         var status = _installer.Status;
         return new ScreenshotActionResult(status.State is "installing" or "installed", status.Message, Inspect());
     }
 
-    private void OnInstallCompleted(ScreenshotInstallStatus status)
+    private void OnInstallCompleted(ScreenshotInstallStatus status, int generation)
     {
         Publish("screenshot.install", status.Message);
         if (status.State != "installed")
@@ -368,6 +385,11 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
 
         lock (_startupGate)
         {
+            if (generation != _installLaunchGeneration)
+            {
+                return;
+            }
+
             var started = _session.EnsureResident(ExecutableOverride());
             Publish("screenshot.launch", started.Message);
         }
