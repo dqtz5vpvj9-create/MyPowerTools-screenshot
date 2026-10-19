@@ -29,11 +29,10 @@ privilege. It does not request elevation or change Developer Mode.
 Stalled streams return a partial body and then wait until cancellation. A short HTTP timeout
 verifies that an archive or checksum stall ends the shared install, closes the stream, leaves
 the resident stopped, and permits a successful explicit retry. The test always releases the
-fake stream, even against an unfixed baseline. No live network request is possible through
+fake stream, even when a regression fails. No live network request is possible through
 these handlers. `--list` prints all case names without creating or executing any fixture.
 
-For source-linked baseline comparison, `-p:ScreenshotInstallerSource=/absolute/path/to/source.cs`
-overrides just the installer. An older baseline needs only the internal optional move-delegate
-test seam (the original deletion and installation behavior must remain unchanged). This test
-project does not validate native Windows file-lock/ACL behavior, macOS installation, UI,
+Historical baseline comparison instructions remain in
+[commit 1d65247](https://github.com/dqtz5vpvj9-create/MyPowerTools-screenshot/tree/1d652472d9f61bf8931470dd86070789feb817bb/tests/Screenshot.Lifecycle.Regression).
+This project does not validate native Windows file-lock/ACL behavior, macOS installation, UI,
 publisher endpoints, or production SDK package ABI.

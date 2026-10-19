@@ -2,14 +2,13 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
-    <ScreenshotInstallerSource Condition="'$(ScreenshotInstallerSource)' == ''">../../current-integration/src/Screenshot.MyPowerTools/ScreenshotSnowShotInstaller.cs</ScreenshotInstallerSource>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotModule.cs" Link="Production/ScreenshotModule.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotSession.cs" Link="Production/ScreenshotSession.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotBackendResolver.cs" Link="Production/ScreenshotBackendResolver.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotCaptureHelp.cs" Link="Production/ScreenshotCaptureHelp.cs" />
-    <Compile Include="$(ScreenshotInstallerSource)" Link="Production/ScreenshotSnowShotInstaller.cs" />
+    <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotSnowShotInstaller.cs" Link="Production/ScreenshotSnowShotInstaller.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotSnowShotHotkey.cs" Link="Production/ScreenshotSnowShotHotkey.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotEnvironment.cs" Link="Production/ScreenshotEnvironment.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/WindowsSnowShotInstallLocations.cs" Link="Production/WindowsSnowShotInstallLocations.cs" />
