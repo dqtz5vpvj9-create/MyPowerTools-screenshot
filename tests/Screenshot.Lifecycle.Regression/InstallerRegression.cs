@@ -191,7 +191,7 @@ static class InstallerRegression
             Equal(false, fixture.Installer.TryStartInstall(out var sameShared));
             Equal(true, ReferenceEquals(shared, sameShared));
             var completed = await Task.WhenAny(shared, Task.Delay(TimeSpan.FromSeconds(2))) == shared;
-            // Always release the fake body, so the failing baseline also terminates cleanly.
+            // Always release the fake body, so a failing regression also terminates cleanly.
             fixture.Handler.Stalled.Release();
             await shared.WaitAsync(TimeSpan.FromSeconds(5));
             await module.InstallationCompletionTask.WaitAsync(TimeSpan.FromSeconds(5));
