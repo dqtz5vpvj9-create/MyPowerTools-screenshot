@@ -3,7 +3,7 @@
   "toolId": "screenshot",
   "ownerModuleId": "screenshot",
   "title": "截图",
-  "description": "Windows 和 macOS 使用 Snow Shot，Linux 使用 Flameshot。框选、标注和贴图留在这些程序里。",
+  "description": "选择快咔、Snow Shot 或 Flameshot 截图，并批量压缩本地图片。",
   "icon": "tool.external",
   "category": "Capture",
   "type": "dotnet-surface",
@@ -22,7 +22,7 @@
     }
   ],
   "homeCard": {
-    "summary": "Windows 和 macOS 使用 Snow Shot，Linux 使用 Flameshot。截图快捷键仍由这些程序自己持有。",
+    "summary": "选择截图程序，压缩图片并另存更小的副本。",
     "primaryActionLabel": "打开截图",
     "statusBinding": "module.status",
     "order": 55

@@ -7,6 +7,7 @@
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotModule.cs" Link="Production/ScreenshotModule.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotSession.cs" Link="Production/ScreenshotSession.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotBackendResolver.cs" Link="Production/ScreenshotBackendResolver.cs" />
+    <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotKuaikaBackend.cs" Link="Production/ScreenshotKuaikaBackend.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotCaptureHelp.cs" Link="Production/ScreenshotCaptureHelp.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotSnowShotInstaller.cs" Link="Production/ScreenshotSnowShotInstaller.cs" />
     <Compile Include="../../current-integration/src/Screenshot.MyPowerTools/ScreenshotSnowShotHotkey.cs" Link="Production/ScreenshotSnowShotHotkey.cs" />

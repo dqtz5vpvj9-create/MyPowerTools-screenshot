@@ -39,30 +39,30 @@ public sealed class ScreenshotSession
         _environment.UseKeyboardShortcuts(service);
     }
 
-    public ScreenshotInspection Inspect(string? executableOverride)
+    public ScreenshotInspection Inspect(string? executableOverride, string backendId = "auto")
     {
         lock (_gate)
         {
             ForgetStaleOwnedProcess();
-            return CreateInspection(ScreenshotBackendResolver.Resolve(_environment, executableOverride));
+            return CreateInspection(ScreenshotBackendResolver.Resolve(_environment, executableOverride, backendId));
         }
     }
 
-    public ScreenshotActionResult EnsureResident(string? executableOverride)
+    public ScreenshotActionResult EnsureResident(string? executableOverride, string backendId = "auto")
     {
         lock (_gate)
         {
-            return EnsureResidentLocked(executableOverride);
+            return EnsureResidentLocked(executableOverride, backendId);
         }
     }
 
-    public ScreenshotActionResult Capture(string? executableOverride)
+    public ScreenshotActionResult Capture(string? executableOverride, string backendId = "auto")
     {
         ScreenshotBackend backend;
         bool wasAlreadyRunning;
         lock (_gate)
         {
-            backend = ScreenshotBackendResolver.Resolve(_environment, executableOverride);
+            backend = ScreenshotBackendResolver.Resolve(_environment, executableOverride, backendId);
             if (!backend.Installed || backend.ExecutablePath is null)
             {
                 return new ScreenshotActionResult(false, backend.InstallHint, CreateInspection(backend));
@@ -83,7 +83,7 @@ public sealed class ScreenshotSession
             }
 
             wasAlreadyRunning = _environment.IsProcessRunning(backend.ProcessName);
-            var resident = EnsureResidentLocked(executableOverride);
+            var resident = EnsureResidentLocked(executableOverride, backendId);
             if (!resident.Success)
             {
                 return resident;
@@ -175,9 +175,9 @@ public sealed class ScreenshotSession
         }
     }
 
-    public ScreenshotActionResult Open(string? executableOverride)
+    public ScreenshotActionResult Open(string? executableOverride, string backendId = "auto")
     {
-        return EnsureResident(executableOverride);
+        return EnsureResident(executableOverride, backendId);
     }
 
     public void StopOwned()
@@ -193,13 +193,20 @@ public sealed class ScreenshotSession
         }
     }
 
-    private ScreenshotActionResult EnsureResidentLocked(string? executableOverride)
+    private ScreenshotActionResult EnsureResidentLocked(string? executableOverride, string backendId = "auto")
     {
         ForgetStaleOwnedProcess();
-        var backend = ScreenshotBackendResolver.Resolve(_environment, executableOverride);
+        var backend = ScreenshotBackendResolver.Resolve(_environment, executableOverride, backendId);
         if (!backend.Installed || backend.ExecutablePath is null)
         {
             return new ScreenshotActionResult(false, backend.InstallHint, CreateInspection(backend));
+        }
+
+        if (_ownedProcessId is int previous && OwnsMatchingLiveProcess(previous) &&
+            !ImagePathsEqual(_ownedImagePath!, backend.ExecutablePath))
+        {
+            _environment.KillProcess(previous);
+            ClearOwnership();
         }
 
         if (_ownedProcessId is int owned && OwnsMatchingLiveProcess(owned))
@@ -288,7 +295,8 @@ public sealed class ScreenshotSession
 
     private ScreenshotInspection CreateInspection(ScreenshotBackend backend)
     {
-        var owned = _ownedProcessId is int processId && OwnsMatchingLiveProcess(processId);
+        var owned = _ownedProcessId is int processId && OwnsMatchingLiveProcess(processId) &&
+            string.Equals(_ownedImagePath, backend.ExecutablePath, _environment.Platform == ScreenshotPlatform.Windows ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
         var running = owned || (backend.Installed && _environment.IsProcessRunning(backend.ProcessName));
         var summary = !backend.Installed
             ? backend.InstallHint

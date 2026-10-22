@@ -104,7 +104,7 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
         IReadOnlyList<MptCommandDescriptor> commands =
         [
             Command("screenshot.status", "查看截图状态", "查看当前截图程序、路径，以及进程是否在运行"),
-            Command("screenshot.capture", "立即截图", "Linux 打开 Flameshot 选区；Windows 和 macOS 通过 Snow Shot 已配置的截图快捷键开始框选"),
+            Command("screenshot.capture", "立即截图", "通过所选截图程序的命令或已配置快捷键开始框选"),
             Command("screenshot.open", "打开截图工具", "如果截图程序还没在运行，就由 MyPowerTools 拉起它"),
             Command("screenshot.install", "下载并安装 Snow Shot", "从 Snow Shot 官网下载官方版本，校验 SHA-256 后为当前用户安装")
         ];
@@ -120,8 +120,8 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
             {
                 "screenshot.status" => Succeeded(request, Serialize(Inspect())),
                 "screenshot.install" => FromAction(request, Install()),
-                "screenshot.capture" => FromAction(request, _session.Capture(ExecutableOverride())),
-                "screenshot.open" => FromAction(request, _session.Open(ExecutableOverride())),
+                "screenshot.capture" => FromAction(request, _session.Capture(ExecutableOverride(), BackendId())),
+                "screenshot.open" => FromAction(request, _session.Open(ExecutableOverride(), BackendId())),
                 _ => Failed(request, MptErrorCodes.NotFound, $"Unknown command '{request.CommandId}'.")
             };
             if (result.Success && request.CommandId is "screenshot.capture" or "screenshot.open" or "screenshot.install")
@@ -161,10 +161,14 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
           "type": "object",
           "required": ["launchWithMyPowerTools"],
           "properties": {
+            "backend": {
+              "type": "string", "title": "截图程序", "enum": ["auto", "kuaika"],
+              "default": "auto", "description": "auto：Windows/macOS 使用 Snow Shot，Linux 使用 Flameshot；kuaika：快咔。"
+            },
             "executablePath": {
               "type": "string",
               "title": "截图程序路径",
-              "description": "留空则自动查找。Windows 和 macOS 指向 snow_shot 或旧版 snowshot，Linux 指向 flameshot。4K 或多屏如果 Snow Shot 界面发虚，改用它的 fixedRuntime 构建后再填这里。",
+              "description": "留空则自动查找所选程序。快咔可指定可执行文件、macOS .app 或 Linux AppImage；平台默认使用 Snow Shot / Flameshot。",
               "default": ""
             },
             "launchWithMyPowerTools": {
@@ -202,13 +206,16 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
             throw new InvalidOperationException(string.Join("; ", messages));
         }
 
-        _settings = merged;
         lock (_startupGate)
         {
+            if (BackendId() != (SettingsJson.ReadString(merged, "backend") ?? "auto") ||
+                ExecutableOverride() != SettingsJson.ReadString(merged, "executablePath"))
+                _installLaunchGeneration++;
+            _settings = merged;
             CancelPendingStartup();
             if (LaunchWithMyPowerTools())
             {
-                var started = _session.EnsureResident(ExecutableOverride());
+                var started = _session.EnsureResident(ExecutableOverride(), BackendId());
                 Publish("screenshot.launch", started.Message);
             }
             else
@@ -304,7 +311,7 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
                 return;
             }
 
-            var started = _session.EnsureResident(ExecutableOverride());
+            var started = _session.EnsureResident(ExecutableOverride(), BackendId());
             Publish("screenshot.launch", started.Message);
         }
     }
@@ -321,8 +328,8 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
 
     private ScreenshotInspection Inspect()
     {
-        var inspection = _session.Inspect(ExecutableOverride());
-        if (_installer is null)
+        var inspection = _session.Inspect(ExecutableOverride(), BackendId());
+        if (_installer is null || BackendId() == "kuaika")
         {
             return inspection;
         }
@@ -340,7 +347,7 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
     // downloads Snow Shot on its own.
     private ScreenshotActionResult Install()
     {
-        if (_installer is null)
+        if (_installer is null || BackendId() == "kuaika")
         {
             return new ScreenshotActionResult(false, "当前环境不支持自动安装。", Inspect());
         }
@@ -350,7 +357,7 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
             return new ScreenshotActionResult(false, unsupported, Inspect());
         }
 
-        var current = _session.Inspect(ExecutableOverride());
+        var current = _session.Inspect(ExecutableOverride(), BackendId());
         if (current.Installed)
         {
             return new ScreenshotActionResult(true, $"{current.DisplayName} 已安装：{current.ExecutablePath}", Inspect());
@@ -390,7 +397,7 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
                 return;
             }
 
-            var started = _session.EnsureResident(ExecutableOverride());
+            var started = _session.EnsureResident(ExecutableOverride(), BackendId());
             Publish("screenshot.launch", started.Message);
         }
     }
@@ -404,6 +411,8 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
 
     private static string Serialize<T>(T value) => JsonSerializer.Serialize(value, JsonOptions);
 
+    private string BackendId() => SettingsJson.ReadString(_settings, "backend") ?? "auto";
+
     private string? ExecutableOverride() => SettingsJson.ReadString(_settings, "executablePath");
 
     private bool LaunchWithMyPowerTools() => SettingsJson.ReadBool(_settings, "launchWithMyPowerTools") ?? true;
@@ -411,8 +420,15 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
     private static List<string> ValidateSettings(JsonObject values)
     {
         var messages = new List<string>();
+        var backend = SettingsJson.ReadString(values, "backend") ?? "auto";
+        if (backend is not ("auto" or "kuaika")) messages.Add("请选择受支持的截图程序。");
         var path = SettingsJson.ReadString(values, "executablePath");
-        if (!string.IsNullOrWhiteSpace(path))
+        if (!string.IsNullOrWhiteSpace(path) && backend == "kuaika")
+        {
+            var resolved = ScreenshotKuaikaBackend.Resolve(new SystemScreenshotEnvironment(), path);
+            if (!resolved.Installed) messages.Add(resolved.InstallHint);
+        }
+        else if (!string.IsNullOrWhiteSpace(path))
         {
             var platform = SystemScreenshotEnvironment.DetectPlatform();
             if (!Path.IsPathRooted(path))
@@ -446,6 +462,7 @@ public sealed class ScreenshotModule : IMptModule, IMptModuleLifecycle
 
     private static JsonObject DefaultSettings() => new()
     {
+        ["backend"] = "auto",
         ["executablePath"] = "",
         ["launchWithMyPowerTools"] = true
     };

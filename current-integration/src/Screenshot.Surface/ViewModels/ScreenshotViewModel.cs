@@ -9,7 +9,7 @@ using MyPowerTools.HostControl;
 
 namespace Screenshot.Surface.ViewModels;
 
-public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
+public sealed partial class ScreenshotViewModel : ToolSurfacePageViewModel
 {
     private readonly MptAvaloniaSurfaceContext _context;
     private readonly CancellationTokenSource _lifetime = new();
@@ -32,9 +32,22 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
     private bool _canInstall;
     private bool _isInstalling;
     private string _installStatus = "";
+    private int _selectedBackendIndex;
+    public IReadOnlyList<string> BackendChoices { get; } = ["Snow Shot / Flameshot（平台默认）", "快咔"];
+    public int SelectedBackendIndex
+    {
+        get => _selectedBackendIndex;
+        set
+        {
+            if (!SetProperty(ref _selectedBackendIndex, value)) return;
+            ExecutablePath = "";
+            OnPropertyChanged(nameof(IsKuaikaSelected));
+        }
+    }
+    public bool IsKuaikaSelected => SelectedBackendIndex == 1;
 
     public ScreenshotViewModel(MptAvaloniaSurfaceContext context)
-        : base("截图", "Windows 和 macOS 使用 Snow Shot，Linux 使用 Flameshot", ToolSurfaceState.Loading)
+        : base("截图", "选择截图程序，压缩本地图片", ToolSurfaceState.Loading)
     {
         _context = context;
         _captureCommand = new ScreenshotUiCommand(CaptureAsync, () => CanCapture);
@@ -135,6 +148,7 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
                     Executable = installed ? "" : "尚未找到可执行文件";
                 }
 
+                SelectedBackendIndex = settings.Backend == "kuaika" ? 1 : 0;
                 ExecutablePath = settings.Path;
                 LaunchWithMyPowerTools = settings.LaunchWithMyPowerTools;
                 SetProductState(installed ? ToolSurfaceState.Ready : ToolSurfaceState.Empty);
@@ -235,10 +249,12 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
         {
             var path = "";
             var launch = true;
+            var backend = "auto";
             await RunOnUiAsync(() =>
             {
                 path = ExecutablePath.Trim();
                 launch = LaunchWithMyPowerTools;
+                backend = IsKuaikaSelected ? "kuaika" : "auto";
             }).ConfigureAwait(false);
 
             using var client = HostControlClient.ForDefaultEndpoint();
@@ -246,6 +262,7 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
             var patch = new JsonObject
             {
                 ["executablePath"] = path,
+                ["backend"] = backend,
                 ["launchWithMyPowerTools"] = launch
             };
             var updated = await client.UpdateSettingsAsync(
@@ -314,14 +331,15 @@ public sealed class ScreenshotViewModel : ToolSurfacePageViewModel
         }
     }
 
-    private static async Task<(string Path, bool LaunchWithMyPowerTools)> ReadSettingsAsync(CancellationToken cancellationToken)
+    private static async Task<(string Path, bool LaunchWithMyPowerTools, string Backend)> ReadSettingsAsync(CancellationToken cancellationToken)
     {
         using var client = HostControlClient.ForDefaultEndpoint();
         var current = await client.GetSettingsAsync("screenshot", cancellationToken).ConfigureAwait(false);
         var values = JsonStructMapper.ToJsonObject(current.Values);
         return (
             SettingsJson.ReadString(values, "executablePath") ?? "",
-            SettingsJson.ReadBool(values, "launchWithMyPowerTools") ?? true);
+            SettingsJson.ReadBool(values, "launchWithMyPowerTools") ?? true,
+            SettingsJson.ReadString(values, "backend") ?? "auto");
     }
 
     private async Task<CommandExecutionResult> ExecuteAsync(string commandId, TimeSpan timeout, CancellationToken cancellationToken)

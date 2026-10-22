@@ -33,7 +33,7 @@
           <TextBlock Text="截图" FontSize="22" FontWeight="SemiBold" />
           <TextBlock Classes="secondary"
                      MaxWidth="760"
-                     Text="框选、标注、贴图和滚动截图由 Snow Shot 或 Flameshot 自己完成。这一页负责发现程序、随 MyPowerTools 拉起，并打开它。" />
+                     Text="选择快咔、Snow Shot 或 Flameshot 完成截图，也可以在这里压缩任意来源的本地图片。" />
         </StackPanel>
       </Border>
 
@@ -83,7 +83,9 @@
         <StackPanel Spacing="12">
           <TextBlock Text="设置" Classes="section-title" />
           <TextBlock Classes="secondary"
-                     Text="路径留空时自动查找。Windows 和 macOS 指向 snow_shot.exe 或旧版 snowshot.exe，Linux 指向 flameshot。4K 或多屏如果 Snow Shot 界面发虚，改用它的 fixedRuntime 构建后再填这里。" />
+                     Text="选择程序后保存设置。路径留空时自动查找；便携版可填写可执行文件的绝对路径，macOS 可填写应用 .app 路径。" />
+          <ComboBox ItemsSource="{Binding BackendChoices}" SelectedIndex="{Binding SelectedBackendIndex}" HorizontalAlignment="Stretch" />
+          <controls:MptButton Content="打开快咔官网下载" Click="KuaikaDownload_Click" IsVisible="{Binding IsKuaikaSelected}" />
           <StackPanel Spacing="6">
             <TextBlock Text="截图程序路径" />
             <controls:MptTextBox Text="{Binding ExecutablePath}" PlaceholderText="留空则自动查找" />
@@ -91,8 +93,33 @@
           <controls:MptCheckBox Content="随 MyPowerTools 启动"
                                 IsChecked="{Binding LaunchWithMyPowerTools}" />
           <TextBlock Classes="secondary"
-                     Text="关闭这项只停止这次由 MyPowerTools 拉起的进程，不会关掉你另外打开的截图程序。Snow Shot 便携版默认截图键是 F1，以它自己的设置为准。" />
+                     Text="关闭这项只停止这次由 MyPowerTools 拉起的进程。截图快捷键以所选程序的设置为准。" />
           <controls:MptButton Content="保存设置" Command="{Binding SaveCommand}" />
+        </StackPanel>
+      </Border>
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <TextBlock Text="图片压缩" Classes="section-title" />
+          <TextBlock Classes="secondary" Text="支持多选 PNG、JPEG、WebP、BMP；在本机处理并另存副本。WebP 支持透明背景，JPEG 将透明区域填为白色。PNG 使用无损编码，质量值仅影响 WebP 和 JPEG。" />
+          <Grid ColumnDefinitions="2*,*,*" ColumnSpacing="12" IsEnabled="{Binding !IsCompressing}">
+            <StackPanel Spacing="6">
+              <TextBlock Text="输出格式" />
+              <ComboBox ItemsSource="{Binding CompressionFormats}" SelectedIndex="{Binding CompressionFormatIndex}" HorizontalAlignment="Stretch" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="6">
+              <TextBlock Text="质量（1–100）" />
+              <NumericUpDown Value="{Binding CompressionQuality}" Minimum="1" Maximum="100" Increment="1" FormatString="0" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="6">
+              <TextBlock Text="最长边（像素，0 保持尺寸）" />
+              <NumericUpDown Value="{Binding CompressionMaximumEdge}" Minimum="0" Maximum="16384" Increment="100" FormatString="0" />
+            </StackPanel>
+          </Grid>
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <controls:MptButton Classes="MptPrimaryButton" Content="选择图片并压缩" Click="Compress_Click" IsEnabled="{Binding !IsCompressing}" />
+            <controls:MptButton Content="取消" Click="CancelCompression_Click" IsVisible="{Binding IsCompressing}" />
+          </StackPanel>
+          <SelectableTextBlock Text="{Binding CompressionResults}" TextWrapping="Wrap" />
         </StackPanel>
       </Border>
     </StackPanel>

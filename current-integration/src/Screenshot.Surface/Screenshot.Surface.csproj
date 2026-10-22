@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <PackageReference Include="MyPowerTools.ToolSdk" Version="0.2.0" />
     <PackageReference Include="MyPowerTools.AvaloniaSdk" Version="0.2.0" />
     <PackageReference Include="MyPowerTools.UI" Version="0.2.0" />

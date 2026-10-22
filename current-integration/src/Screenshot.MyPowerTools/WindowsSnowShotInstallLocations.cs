@@ -31,7 +31,9 @@ internal static class WindowsSnowShotInstallLocations
                         using var app = uninstall.OpenSubKey(subKeyName);
                         var displayName = app?.GetValue("DisplayName") as string;
                         if (displayName is null ||
-                            !displayName.Contains("Snow Shot", StringComparison.OrdinalIgnoreCase))
+                            !(displayName.Contains("Snow Shot", StringComparison.OrdinalIgnoreCase) ||
+                              displayName.Contains("kuaika", StringComparison.OrdinalIgnoreCase) ||
+                              displayName.Contains("快咔", StringComparison.Ordinal)))
                         {
                             continue;
                         }

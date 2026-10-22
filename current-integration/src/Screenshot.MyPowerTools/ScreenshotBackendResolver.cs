@@ -24,8 +24,9 @@ public static class ScreenshotBackendResolver
     private static readonly string[] WindowsExecutableNames = [SnowShotExecutable, SnowShotLegacyExecutable];
     private static readonly string[] MacExecutableNames = [SnowShotBinary, SnowShotLegacyBinary];
 
-    public static ScreenshotBackend Resolve(IScreenshotEnvironment environment, string? executableOverride)
+    public static ScreenshotBackend Resolve(IScreenshotEnvironment environment, string? executableOverride, string backendId = "auto")
     {
+        if (backendId == "kuaika") return ScreenshotKuaikaBackend.Resolve(environment, executableOverride);
         var platform = environment.Platform;
         var normalized = NormalizeOverride(environment, platform, executableOverride);
         if (normalized.Error is not null)

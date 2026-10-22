@@ -17,7 +17,7 @@
     {
       "id": "screenshot.capture",
       "title": "立即截图",
-      "subtitle": "Linux 打开 Flameshot 选区；Windows 和 macOS 通过 Snow Shot 已配置的截图快捷键开始框选",
+      "subtitle": "通过所选截图程序的命令或已配置快捷键开始框选",
       "kind": "action",
       "category": "Capture",
       "constraints": [

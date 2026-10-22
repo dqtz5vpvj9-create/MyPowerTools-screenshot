@@ -19,6 +19,17 @@ var cases = new (string Name, Func<Task> Run)[]
     ("disable during install suppresses completion launch", () => SuppressLaunchAsync("disable")),
     ("dispose during install suppresses completion launch", () => SuppressLaunchAsync("dispose")),
     ("changing launch setting to false suppresses completion launch", () => SuppressLaunchAsync("setting")),
+    ("changing backend during Snow Shot install suppresses its launch", async () =>
+    {
+        await using var fixture = new InstallFixture();
+        await fixture.BeginAsync();
+        await fixture.Module.ApplySettingsAsync(new SettingsSnapshotDocument("screenshot", 1,
+            new JsonObject { ["backend"] = "kuaika" }, DateTimeOffset.UtcNow), default);
+        await fixture.CompleteAsync();
+        Equal(0, fixture.Environment.Starts);
+        var install = await fixture.Module.ExecuteCommandAsync(new CommandRequest("install-kuaika", "screenshot.install"), default);
+        Equal(false, install.Success);
+    }),
     ("fresh explicit install after stop can still launch", async () =>
     {
         await using var fixture = new InstallFixture();
@@ -67,7 +78,7 @@ var cases = new (string Name, Func<Task> Run)[]
         Equal(0, fixture.Environment.Kills);
         Equal(true, fixture.Environment.Running);
     })
-}.Concat(InstallerRegression.Cases).ToArray();
+}.Concat(InstallerRegression.Cases).Concat(BackendRegression.Cases).ToArray();
 if (args is ["--list"])
 {
     Console.WriteLine("MPT_TEST_CASES_V1");
