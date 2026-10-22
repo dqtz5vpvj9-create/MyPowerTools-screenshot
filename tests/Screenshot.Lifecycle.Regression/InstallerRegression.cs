@@ -1,5 +1,6 @@
 using System.IO.Compression;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using MyPowerTools.Abstractions;
 using Screenshot.MyPowerTools;
@@ -12,6 +13,10 @@ static class InstallerRegression
         ("root settings follow a new bin executable layout", () => PreserveLayoutAsync(oldBin: false)),
         ("bin settings follow a new root executable layout", () => PreserveLayoutAsync(oldBin: true)),
         ("fresh install retains archive default settings", FreshInstallAsync),
+        ("versioned attachment uses current per-asset checksum instead of stale aggregate", () => VersionedDownloadAsync(header: true)),
+        ("redirected asset name matches checksum without attachment header", () => VersionedDownloadAsync(header: false)),
+        ("checksum for another release is rejected without changing installation", WrongReleaseAsync),
+        ("macOS versioned checksum matches only the downloaded image", MacChecksumAsync),
         ("checksum failure leaves existing settings and install untouched", ChecksumFailureAsync),
         ("missing archive executable leaves old install and no extraction residue", MissingExecutableAsync),
         ("settings copy conflict leaves original installation untouched", CopyConflictAsync),
@@ -78,6 +83,43 @@ static class InstallerRegression
         Equal("old inert executable", fixture.Read("snow_shot.exe"));
         Equal("old settings", fixture.Read("portable/config.json"));
         fixture.NoInstallResidue();
+    }
+
+    private static async Task VersionedDownloadAsync(bool header)
+    {
+        await using var fixture = new Fixture();
+        fixture.Handler.AssetName = "snow-shot-1.3.5-windows-x64-portable.zip";
+        fixture.Handler.ChecksumName = fixture.Handler.AssetName;
+        fixture.Handler.UseAttachmentHeader = header;
+        Equal("installed", (await fixture.InstallAsync()).State);
+        Equal(true, fixture.Handler.UsedPerAssetChecksum);
+        fixture.NoInstallResidue();
+    }
+
+    private static async Task WrongReleaseAsync()
+    {
+        await using var fixture = new Fixture();
+        fixture.Handler.AssetName = "snow-shot-1.3.5-windows-x64-portable.zip";
+        fixture.Handler.ChecksumName = "snow-shot-1.3.4-windows-x64-portable.zip";
+        fixture.Old("portable/config.json", "keep settings");
+        Equal("failed", (await fixture.InstallAsync()).State);
+        Equal("keep settings", fixture.Read("portable/config.json"));
+        fixture.NoInstallResidue();
+    }
+
+    private static Task MacChecksumAsync()
+    {
+        var hash = new string('a', 64);
+        const string downloaded = "snow-shot-1.3.5-macos-arm64.dmg";
+        Equal(hash, ScreenshotSnowShotInstaller.ParseChecksum(hash + "  " + downloaded,
+            ScreenshotSnowShotInstaller.MacDiskImage, downloaded));
+        try
+        {
+            ScreenshotSnowShotInstaller.ParseChecksum(hash + "  snow-shot-1.3.4-macos-arm64.dmg",
+                ScreenshotSnowShotInstaller.MacDiskImage, downloaded);
+        }
+        catch (InvalidOperationException) { return Task.CompletedTask; }
+        throw new InvalidOperationException("A checksum for another release was accepted.");
     }
 
     private static async Task MissingExecutableAsync()
@@ -274,6 +316,10 @@ static class InstallerRegression
         private readonly byte[] _archive;
         private readonly string _checksum;
         public bool BadChecksum { get; set; }
+        public string AssetName { get; set; } = ScreenshotSnowShotInstaller.WindowsPortableArchive;
+        public string ChecksumName { get; set; } = ScreenshotSnowShotInstaller.WindowsPortableArchive;
+        public bool UseAttachmentHeader { get; set; }
+        public bool UsedPerAssetChecksum { get; private set; }
         public bool StallArchiveOnce { get; set; }
         public bool StallChecksumOnce { get; set; }
         public StalledStream Stalled { get; } = new();
@@ -292,19 +338,30 @@ static class InstallerRegression
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             HttpContent content;
+            var responseRequest = request;
             if (request.RequestUri?.AbsoluteUri == ScreenshotSnowShotInstaller.SetupBaseUrl + ScreenshotSnowShotInstaller.WindowsPortableArchive)
             {
                 content = StallArchiveOnce ? new StreamContent(Stalled) : new ByteArrayContent(_archive);
                 StallArchiveOnce = false;
+                responseRequest = new HttpRequestMessage(HttpMethod.Get, "https://foruda.gitee.com/attach_file/123/" + AssetName + "?token=synthetic");
+                if (UseAttachmentHeader)
+                {
+                    // The attachment name also works when the redirected path is opaque.
+                    responseRequest.RequestUri = new Uri("https://foruda.gitee.com/attach_file/123/download");
+                    content.Headers.ContentDisposition = new ContentDispositionHeaderValue("attachment") { FileName = "\"" + AssetName + "\"" };
+                }
             }
-            else if (request.RequestUri?.AbsoluteUri == ScreenshotSnowShotInstaller.SetupBaseUrl + ScreenshotSnowShotInstaller.WindowsChecksums)
+            else if (request.RequestUri?.AbsoluteUri == ScreenshotSnowShotInstaller.SetupBaseUrl + "snow-shot_windows-x64-portable.zip.sha256")
             {
+                UsedPerAssetChecksum = true;
                 content = StallChecksumOnce ? new StreamContent(Stalled) : new StringContent(
-                    (BadChecksum ? new string('0', 64) : _checksum) + "  " + ScreenshotSnowShotInstaller.WindowsPortableArchive);
+                    (BadChecksum ? new string('0', 64) : _checksum) + "  " + ChecksumName);
                 StallChecksumOnce = false;
             }
+            else if (request.RequestUri?.AbsoluteUri == ScreenshotSnowShotInstaller.SetupBaseUrl + "SHA256SUMS")
+                content = new StringContent(new string('0', 64) + "  " + ScreenshotSnowShotInstaller.WindowsPortableArchive);
             else throw new InvalidOperationException("Unexpected fake HTTP route.");
-            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content });
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = content, RequestMessage = responseRequest });
         }
     }
 

@@ -290,7 +290,7 @@ public static class ScreenshotBackendResolver
             ScreenshotPlatform.Windows =>
                 "未找到 Snow Shot。可以用 winget install --id mg-chao.snow-shot -e 安装，或在设置里填写 snow_shot.exe 的绝对路径。4K 或多屏如果界面发虚，改用 Snow Shot 的 fixedRuntime 构建。",
             ScreenshotPlatform.MacOs =>
-                "未找到 Snow Shot。请从 https://snowshot.top/download/ 安装，或在设置里填写 Snow Shot.app 内 snow_shot 的绝对路径。",
+                "未找到 Snow Shot。请从 https://snowshot.top/ 安装，或在设置里填写 Snow Shot.app 内 snow_shot 的绝对路径。",
             _ =>
                 "未找到 Flameshot。请用发行版的包管理器安装 flameshot，或在设置里填写可执行文件的绝对路径。"
         };

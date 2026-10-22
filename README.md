@@ -9,10 +9,19 @@ Both programs are GPL-3.0. This module does not link or vendor them. It looks up
 
 On macOS, **立即截图** sends the same hotkey through the MyPowerTools `keyboard.shortcut` platform service (CoreGraphics `CGEvent`), so MyPowerTools needs Accessibility permission (System Settings › Privacy & Security › Accessibility). The hotkey is read from `~/Library/Application Support/SnowShot/snow_shot/config.json`; without a saved value Snow Shot's macOS default `Control+1` is used. Qt writes Command as `Ctrl` and Control as `Meta` on macOS; the module swaps them into MyPowerTools notation.
 
-Snow Shot is never downloaded automatically. When it is missing, the Screenshot page shows a **下载并安装 Snow Shot** button (command `screenshot.install`). Clicking it downloads the official build from `https://snowshot.top/setup/` (`snow-shot_macos-arm64.dmg` on Apple silicon Macs, `snow-shot_windows-x64-portable.zip` on Windows), checks the SHA-256 the publisher lists next to it (`.sha256` / `SHA256SUMS`), installs it for the current user (`~/Applications/Snow Shot.app`, `%LOCALAPPDATA%\Programs\Snow Shot`) and starts it. Snow Shot publishes no Intel Mac build, so the button is hidden there. On Windows the usual package is `winget install --id mg-chao.snow-shot -e`. A 4K or multi-monitor display that renders poorly should use Snow Shot's fixedRuntime build, then set that executable path in Screenshot settings.
+Snow Shot is never downloaded automatically. When it is missing, the Screenshot page shows a **下载并安装 Snow Shot** button (command `screenshot.install`). Clicking it downloads the official build from `https://snowshot.top/setup/` (`snow-shot_macos-arm64.dmg` on Apple silicon Macs, `snow-shot_windows-x64-portable.zip` on Windows), checks the publisher's per-asset `.sha256` file, installs it for the current user (`~/Applications/Snow Shot.app`, `%LOCALAPPDATA%\Programs\Snow Shot`) and starts it. The checksum filename must match the stable alias or the actual downloaded filename from the response attachment header or final redirect URL. The aggregate `SHA256SUMS` is not used because it can lag behind release redirects. Snow Shot publishes no Intel Mac build, so the button is hidden there. On Windows the usual package is `winget install --id mg-chao.snow-shot -e`. A 4K or multi-monitor display that renders poorly should use Snow Shot's fixedRuntime build, then set that executable path in Screenshot settings.
 
 Build from the repository root:
 
 ```powershell
 pwsh.exe -NoLogo -NoProfile -NonInteractive -File .\tools\screenshot\build.ps1 -MyPowerToolsRepoRoot .
 ```
+
+Run the offline installation and lifecycle regressions from the repository root:
+
+```powershell
+dotnet run --project tools/screenshot/tests/Screenshot.Lifecycle.Regression -c Release
+```
+
+The tests cover versioned download names, stale aggregate checksums, wrong-release rejection,
+hash mismatch, download timeouts, preserved settings, rollback, and shutdown during installation.

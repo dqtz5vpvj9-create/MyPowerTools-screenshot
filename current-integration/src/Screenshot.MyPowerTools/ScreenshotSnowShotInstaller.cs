@@ -21,7 +21,7 @@ public sealed class ScreenshotSnowShotInstaller
     public const string SetupBaseUrl = "https://snowshot.top/setup/";
     public const string MacDiskImage = "snow-shot_macos-arm64.dmg";
     public const string WindowsPortableArchive = "snow-shot_windows-x64-portable.zip";
-    public const string WindowsChecksums = "SHA256SUMS";
+    public const string WindowsChecksums = WindowsPortableArchive + ".sha256";
 
     private static readonly TimeSpan DownloadTimeout = TimeSpan.FromMinutes(20);
     private static readonly TimeSpan ToolTimeout = TimeSpan.FromMinutes(3);
@@ -132,7 +132,7 @@ public sealed class ScreenshotSnowShotInstaller
         {
             result = new ScreenshotInstallStatus(
                 "failed",
-                $"自动安装 Snow Shot 失败：{exception.Message} 可以稍后在截图页面点「安装 Snow Shot」重试，或从 https://snowshot.top/download/ 手动安装。");
+                $"自动安装 Snow Shot 失败：{exception.Message} 可以稍后在截图页面点「安装 Snow Shot」重试，或从 https://snowshot.top/ 手动安装。");
         }
         finally
         {
@@ -156,10 +156,10 @@ public sealed class ScreenshotSnowShotInstaller
 
         using var http = _httpFactory();
         var image = Path.Combine(workRoot, MacDiskImage);
-        await DownloadAsync(http, SetupBaseUrl + MacDiskImage, image).ConfigureAwait(false);
+        var downloadedName = await DownloadAsync(http, SetupBaseUrl + MacDiskImage, image).ConfigureAwait(false);
         var expected = ParseChecksum(
             await http.GetStringAsync(SetupBaseUrl + MacDiskImage + ".sha256").ConfigureAwait(false),
-            MacDiskImage);
+            MacDiskImage, downloadedName);
         VerifyChecksum(image, expected);
 
         var mountPoint = Path.Combine(workRoot, "mount");
@@ -195,10 +195,12 @@ public sealed class ScreenshotSnowShotInstaller
     {
         using var http = _httpFactory();
         var archive = Path.Combine(workRoot, WindowsPortableArchive);
-        await DownloadAsync(http, SetupBaseUrl + WindowsPortableArchive, archive).ConfigureAwait(false);
+        var downloadedName = await DownloadAsync(http, SetupBaseUrl + WindowsPortableArchive, archive).ConfigureAwait(false);
+        // The aggregate SHA256SUMS can lag behind the stable URL's release redirect.
+        // Use the publisher's per-asset checksum, which follows the current release.
         var expected = ParseChecksum(
             await http.GetStringAsync(SetupBaseUrl + WindowsChecksums).ConfigureAwait(false),
-            WindowsPortableArchive);
+            WindowsPortableArchive, downloadedName);
         VerifyChecksum(archive, expected);
 
         // Extract next to the destination so the final move never crosses volumes.
@@ -322,7 +324,7 @@ public sealed class ScreenshotSnowShotInstaller
             throw new IOException($"无法安全迁移链接形式的 Snow Shot 设置：{path}");
     }
 
-    private static async Task DownloadAsync(HttpClient http, string url, string destination)
+    private static async Task<string> DownloadAsync(HttpClient http, string url, string destination)
     {
         // ResponseHeadersRead ends HttpClient.Timeout at the headers. Keep a deadline alive
         // for stream acquisition and every body read as well, including a stalled response.
@@ -335,12 +337,20 @@ public sealed class ScreenshotSnowShotInstaller
         await using var source = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
         await using var target = File.Create(destination);
         await source.CopyToAsync(target, deadline.Token).ConfigureAwait(false);
+        // Stable aliases redirect to versioned assets. Match the checksum to the name
+        // supplied by that response, never to an arbitrary same-platform release.
+        // This name is used only for comparison, never as a filesystem destination.
+        var disposition = response.Content.Headers.ContentDisposition;
+        var name = disposition?.FileNameStar ?? disposition?.FileName;
+        return !string.IsNullOrWhiteSpace(name)
+            ? name.Trim('"')
+            : Uri.UnescapeDataString((response.RequestMessage?.RequestUri ?? new Uri(url)).Segments.Last());
     }
 
     /// <summary>
     /// Reads a lowercase SHA-256 either from a single-hash file or from a "hash  name" list.
     /// </summary>
-    public static string ParseChecksum(string text, string fileName)
+    public static string ParseChecksum(string text, string fileName, string? downloadedFileName = null)
     {
         var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         foreach (var line in lines)
@@ -360,7 +370,10 @@ public sealed class ScreenshotSnowShotInstaller
             {
                 var name = parts[1].TrimStart('*').Trim();
                 if (name.EndsWith("/" + fileName, StringComparison.OrdinalIgnoreCase) ||
-                    name.Equals(fileName, StringComparison.OrdinalIgnoreCase))
+                    name.Equals(fileName, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrWhiteSpace(downloadedFileName) &&
+                     (name.Equals(downloadedFileName, StringComparison.OrdinalIgnoreCase) ||
+                      name.EndsWith("/" + downloadedFileName, StringComparison.OrdinalIgnoreCase))))
                 {
                     return parts[0].ToLowerInvariant();
                 }
@@ -408,6 +421,7 @@ public sealed class ScreenshotSnowShotInstaller
         var start = new ProcessStartInfo(fileName)
         {
             UseShellExecute = false,
+            CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true
